@@ -12,8 +12,17 @@
 #include <unistd.h>
 #include <errno.h>
 
-# define  SUCCESSFUL 1;
+# define SUCCESSFUL 1;
 # define FAILURE 0;
+
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
 
 
 
@@ -102,7 +111,7 @@ int nodeDelete(node_t **ndPtrPtr, int n){
 
 void p_wait(pid_t pid){
     int status;
-    waitpid(pid, &status, 0);
+    waitpid(pid, &status, WUNTRACED);
     if (WIFEXITED(status)) {
       printf("program exited normally\n");
       exit(0);
@@ -314,8 +323,35 @@ void continueing(int pid){
         p_continue(pid);
     }
 }
-void change_regs_color(){
+void change_regs_color(pid_t pid){
+    struct user_regs_struct regs1;
+    struct user_regs_struct regs2;
+    char biger[7] = KCYN;
+    char lesser[7] = KMAG;
+    char def[7] = KNRM;
+    regs1 = p_getregs(pid);
+    while(1){
+        p_step(pid);
+        sleep(1);
+        regs2 = p_getregs(pid);
+        if(regs1.rax != regs2.rax){
+            printf("%s%016llx\n%s", KCYN ,regs2.rax, KNRM);
+            // I want to change color .textetestsadasxrimax
+        }else{
+            printf("%016llx\n", regs2.rax);
+        }
 
+        if(regs1.rax > regs2.rax){
+            printf("%s%016llx\n%s", lesser ,regs2.rax, KNRM);
+            // I want to change color .textetestsadasxrimax
+        }else{
+            printf("%016llx\n", regs2.rax);
+        }
+
+
+        regs1 = regs2;
+    }
+    
 }
 void run_debugger(int pid){   
     int status;
@@ -364,7 +400,7 @@ void run_debugger(int pid){
         }
         else if(!strcmp(str, "sc\n")){
             //set_condition(pid);
-            change_regs_color();
+            change_regs_color(pid);
         }
         else{
             printf("unexpected.\n");  
