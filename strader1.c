@@ -189,12 +189,14 @@ unsigned long long int p_removebreakpoint(pid_t pid){
     }
     return address -1;
 }
-void p_continue(int pid){   
+void p_continue(int pid)
+{   
     ptrace(PTRACE_CONT, pid, 0, 0);
     printf("----------------------------------------------------\n");
     p_wait(pid);
 }
-void p_step(int pid){   
+void p_step(int pid
+){   
     ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
     p_wait(pid);
 }
@@ -327,33 +329,153 @@ void change_regs_color(pid_t pid){
     struct user_regs_struct regs1;
     struct user_regs_struct regs2;
     char biger[7] = KCYN;
-    char lesser[7] = KMAG;
+    char leser[7] = KMAG;
     char def[7] = KNRM;
     regs1 = p_getregs(pid);
+    char str[10];
+    int cyc;
+    printf("please type time you want to repeat(ms): ");
+    fgets(str, 10, stdin);
+    cyc = atoi(str);
     while(1){
+        long long int inlong;
         p_step(pid);
-        sleep(1);
+        
         regs2 = p_getregs(pid);
-        if(regs1.rax != regs2.rax){
-            printf("%s%016llx\n%s", KCYN ,regs2.rax, KNRM);
-            // I want to change color .textetestsadasxrimax
-        }else{
-            printf("%016llx\n", regs2.rax);
+
+        inlong = regs2.rip - regs1.rip;
+
+        if(inlong > 0){
+            printf("%srip: %016llx\t%s", leser ,regs2.rip, KNRM);   
+        }else if(inlong < 0){
+            printf("%srip: %016llx\t%s", biger ,regs2.rip, KNRM);   
+        }
+        else{
+            printf("rip: %016llx\t", regs2.rip);
         }
 
-        if(regs1.rax > regs2.rax){
-            printf("%s%016llx\n%s", lesser ,regs2.rax, KNRM);
-            // I want to change color .textetestsadasxrimax
+        inlong = regs2.rip - regs1.rip;
+        if(inlong > 1000){
+            printf("%lld maybe rip was jumped to anyware.\n", inlong);
+        }else if(inlong < 0){
+            printf("\t%lld instruction pointer was mobed to behind.\n", inlong);
+        } else {
+            printf("\t%lld byte is the long of one instruction.\n", inlong);
+        }
+    
+        if(regs1.rax == regs2.rax){
+            printf("rax: %016llx\n", regs2.rax);
+           
         }else{
-            printf("%016llx\n", regs2.rax);
+            printf("%srax: %016llx\n%s", biger ,regs2.rax, KNRM);
+            
+        }
+        
+
+
+          
+        if(regs1.rdx != regs2.rdx){
+            printf("%srdx: %016llx\n%s", biger ,regs2.rdx, KNRM);   
+        }else{
+            printf("rdx: %016llx\n", regs2.rdx);
         }
 
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%srcx: %016llx\n%s", biger ,regs2.rcx, KNRM);   
+        }else{
+            printf("rcx: %016llx\n", regs2.rcx);
+        }
+
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%srbx: %016llx\n%s", biger ,regs2.rbx, KNRM);   
+        }else{
+            printf("rbx: %016llx\n", regs2.rbx);
+        }
+ 
+        if(regs1.rdx != regs2.rdx){
+            printf("%srsi: %016llx\n%s", biger ,regs2.rsi, KNRM);   
+        }else{
+            printf("rsi: %016llx\n", regs2.rsi);
+        }
+
+
+        if(regs1.rdx < regs2.rdx){
+            printf("%srdi: %016llx\n%s", biger ,regs2.rdi, KNRM);   
+        }else{
+            printf("rdi: %016llx\n", regs2.rdi);
+        }
+
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%srsp: %016llx\n%s", biger ,regs2.rsp, KNRM);   
+        }else{
+            printf("rsp: %016llx\n", regs2.rsp);
+        }
+
+
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%srbp: %016llx\n%s", biger ,regs2.rbp, KNRM);   
+        }else{
+            printf("rbp: %016llx\n", regs2.rbp);
+        }
+
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%sr8 : %016llx\n%s", biger ,regs2.r8, KNRM);   
+        }else{
+            printf("r8 : %016llx\n", regs2.r8);
+        }
+
+    
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%sr9 : %016llx\n%s", biger ,regs2.r9, KNRM);   
+        }else{
+            printf("r9 : %016llx\n", regs2.r9);
+        }
+
+
+        if(regs1.rdx < regs2.rdx){
+            printf("%sr10: %016llx\n%s", biger ,regs2.r10, KNRM);   
+        }else{
+            printf("r10: %016llx\n", regs2.r10);
+        }
+
+
+        if(regs1.rdx < regs2.rdx){
+            printf("%sr11: %016llx\n%s", biger ,regs2.r11, KNRM);   
+        }else{
+            printf("r11: %016llx\n", regs2.r11);
+        }
+
+
+        if(regs1.rdx != regs2.rdx){
+            printf("%sr12: %016llx\n%s", biger ,regs2.r12, KNRM);   
+        }else{
+            printf("r12: %016llx\n", regs2.r12);
+        }
+ 
+        if(regs1.rdx < regs2.rdx){
+            printf("%sfs : %016llx\n%s", biger ,regs2.fs, KNRM);   
+        }else{
+            printf("fs : %016llx\n", regs2.fs);
+        }
+
+        if(regs2.rbp != 0){
+            printf("stack size (bytes):%lld\n", regs2.rbp - regs2.rsp);
+        }
 
         regs1 = regs2;
+        usleep(cyc * 1000);
+    
+        system("clear");
     }
     
 }
-void run_debugger(int pid){   
+void run_debugger(int pid, int attach){   
     int status;
     
     
@@ -365,7 +487,7 @@ void run_debugger(int pid){
     p_wait(pid);
 
     while(1){
-        char str[17];
+        char str[20];
         
         p_showregs(pid);
         printf(">");
@@ -389,6 +511,9 @@ void run_debugger(int pid){
             stepping(pid);
         }
         else if(!strcmp(str, "q\n")){
+            if(attach == 1){
+                ptrace(PTRACE_DETACH, pid, NULL, NULL);
+            }
             ptrace(PTRACE_KILL,pid, 0, 0);
             break;
         }
@@ -410,6 +535,25 @@ void run_debugger(int pid){
 int main(int argc, char** argv){
     pid_t child_pid;
     if (argc < 2){
+        char strpid[32];
+        int intpid;
+
+        printf("If you want to debug aleady exist process, Please type the process id.\n");
+        printf("type \"q\" to quit.\n");
+        fgets(strpid ,sizeof(strpid) , stdin);
+        if(!strcmp(strpid, "q\n")){
+            exit(1);
+            run_debugger(intpid, 1);
+        }
+        long ret;
+        intpid = atoi(strpid);
+        ret = ptrace(PTRACE_ATTACH, intpid, NULL, NULL);
+        if(ret < 0){
+            perror("failed to attach");
+            exit(1);
+        }
+        run_debugger(intpid, 1);
+
         printf("argument error");
         fprintf(stderr, "Usage :$ %s <target> <addr>\n", argv[0]);
         exit(1);
@@ -419,7 +563,7 @@ int main(int argc, char** argv){
         run_target(argv[1]);
     }
     else if (child_pid > 0){
-        run_debugger(child_pid);
+        run_debugger(child_pid, 0);
     }
     else {
         fprintf(stderr, "error at forking target");
