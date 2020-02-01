@@ -12,8 +12,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-# define SUCCESSFUL 1;
-# define FAILURE 0;
+# define SUCCESSFUL 1
+# define FAILURE 0
 
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
