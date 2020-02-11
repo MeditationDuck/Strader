@@ -707,6 +707,13 @@ void run_debugger(int pid, int attach)
 
 int main(int argc, char** argv){
     pid_t child_pid;
+    printf("\
+.▄▄ · ▄▄▄▄▄▄▄▄   ▄▄▄· ·▄▄▄▄  ▄▄▄ .▄▄▄  \n\
+▐█ ▀. •██  ▀▄ █·▐█ ▀█ ██▪ ██ ▀▄.▀·▀▄ █·\n\
+▄▀▀▀█▄ ▐█.▪▐▀▀▄ ▄█▀▀█ ▐█· ▐█▌▐▀▀▪▄▐▀▀▄ \n\
+▐█▄▪▐█ ▐█▌·▐█•█▌▐█ ▪▐▌██. ██ ▐█▄▄▌▐█•█▌\n\
+ ▀▀▀▀  ▀▀▀ .▀  ▀ ▀  ▀ ▀▀▀▀▀•  ▀▀▀ .▀  ▀\n\
+");
     if (argc < 2){
         char strpid[32];
         int intpid;
