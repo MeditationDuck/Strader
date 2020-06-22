@@ -259,6 +259,7 @@ unsigned long long int p_removebreakpoint(pid_t pid)
     if(0 == nodeDelete(&list, node_findcnt(list, address-1))){
         printf("ブレークポイントリストからブレークポイントを削除できませんでした．\n");
     }
+    //ブレークポイントが設定されていたアドレスを返す．
     return address -1;
 }
 
@@ -353,15 +354,30 @@ void stepping(int pid)
     unsigned long long int text;
     unsigned long long int address;
 
+    //レジスタの値を取得
     regs = p_getregs(pid);
-
+    
+    //停止した原因がブレークポイントであったかどうかの確認
     text = ptrace(PTRACE_PEEKTEXT, pid, regs.rip -1 , 0);
     if( 0xCC == ((text & 0x00000000000000FF))){
+        //そうであった場合
+        //ブレークポイントを一旦削除
+        //この関数はブレークポイントが設定されていたアドレスを返すから
+        //そのアドレスと同じ場所に再度ブレークポイントを設定すると
+        //ブレークポイントが設定された状態を保てる
         address = p_removebreakpoint(pid);
+
+        //命令を一つ進める
+        //ここではブレークポイントがあった場所のもともとの命令を実行する
         p_step(pid);
+        //同じ場所にブレークポイントを設置
+        //このときすでにaddress上にある命令は実行済み
+        //つまり子プロセスに繰り返しの処理などによって同じ命令が繰り返される
+        //ことがない限りブレークはしない
         set_break(pid, address);
-        p_step(pid);     
+            
     }else{
+        //停止した原因がブレークポイントでない場合そのままステップ
         p_step(pid);
     }
     return;
