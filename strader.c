@@ -122,9 +122,9 @@ void p_wait(pid_t pid)
       printf("stopped by signal %d\n", WSTOPSIG(status));
     }
 }
-
+// ブレークポイントを設置する．ブレークポイントはそのアドレスとそのアドレスから上に８バイト分のメモリ内容を保存する．
 void set_break(pid_t pid, unsigned long long int address)
-{
+{     
     unsigned long long int original_text;
     original_text = ptrace(PTRACE_PEEKTEXT, pid, address, 0);
     if(original_text == -1){
@@ -153,11 +153,13 @@ void p_setbreakpoint(int pid)
     unsigned long long int break_address;
     
 
-    printf("set breakpoint\n");
-    printf("put the address of you want to break\n");
+    printf("ブレークポイントを設定します．\n");
+    printf("ブレークポイントを設定したいアドレスを入力．\n");
+    //アドレスの文字列を受け入れ，文字列であるから方を変換して，
     fgets(str_address, 17, stdin);
     break_address = (unsigned long long int)strtol(str_address, NULL, 16);
     printf("%016llx\n", break_address);
+    // そのアドレスをもとにブレークポイントを設置
     set_break(pid, break_address);
 }
 
@@ -221,6 +223,7 @@ struct user_regs_struct p_getregs(int pid)
 
 void p_showregs(int pid)
 {
+    //ほとんどのレジスタを表示
     struct user_regs_struct regs;
     regs = p_getregs(pid);
     //printf("\n");
@@ -479,13 +482,22 @@ void setregs(int pid)
 
 void continueing(int pid)
 {
+    // 停止したプロセスの動作の再開
+
+    // マスクをして停止したアドレスが0xCCつまりブレークポイントであった場合は，
+    // そのブレークポイントを一旦もとの命令に戻し，ステップ実行によって命令を一つ進める．
+    // そして，また同じ場所にブレークポイントを設置する．
+    // こうすることによってブレークする以前の状態を保とうとしている．
     struct user_regs_struct regs;
     unsigned long long int text;
     unsigned long long int address;
-
+    //レジスタを一旦構造体として保存
     regs = p_getregs(pid);
-
+    //現在のブレークする一つ前のメモリの状態８バイトを保存
+    //止まったアドレスが0xCCの場合は停止したプログラムは次の命令のアドレスをripに保存するため，
+    //
     text = ptrace(PTRACE_PEEKTEXT, pid, regs.rip -1 , 0);
+    
     if( 0xCC == ((text & 0x00000000000000FF))){
         address = p_removebreakpoint(pid);
         p_step(pid);
@@ -652,9 +664,10 @@ void run_debugger(int pid, int attach)
     printf("run_debugger.\n");
     printf("press \"h\" to help.\n");
 
-    printf("I`m tracer and child process id is %d \n", pid);
+    printf("子プロセスのIDは  %d \n", pid);
     p_wait(pid);
-
+            // 以下でデバッガの操作を行うキー入力に対する処理
+            // 
     while(1){
         char str[20];
         
@@ -662,27 +675,35 @@ void run_debugger(int pid, int attach)
         printf(">");
         fgets(str, 20, stdin);
         if(!strcmp(str,"b\n")){
+            // ブレークポイントの設置
             p_setbreakpoint(pid);
         }
         else if(!strcmp(str, "c\n")){
+            // 停止したプロセスの動作の再開
             continueing(pid);
         }
         else if(!strcmp(str, "r\n")){
+            // レジスタの値を表示
             p_showregs(pid);
         }
         else if(!strcmp(str, "sr\n")){
+            // レジスタの値を設定
             setregs(pid);
         }
-        else if(!strcmp(str, "d\n")){            
+        else if(!strcmp(str, "d\n")){
+            // ブレークポイントを消去            
             p_removebreakpoint(pid);            
         }        
         else if(!strcmp(str, "ib\n")){
+            // 設定されたブレークポイントを表示
             listPrint(list);
         }
         else if(!strcmp(str, "s\n")){
+            // ステップ処理
             stepping(pid);
         }
         else if(!strcmp(str, "q\n")){
+            // 子プロセスをデタッチし，そして子プロセスを終了させ，親プロセスも終了
             if(attach == 1){
                 ptrace(PTRACE_DETACH, pid, NULL, NULL);
             }
@@ -690,16 +711,19 @@ void run_debugger(int pid, int attach)
             break;
         }
         else if(!strcmp(str, "m\n")){
+            // メモリの内容を表示
             showmemory(pid);
         }
         else if(!strcmp(str, "h\n")){
+            // ヘルプを表示
             print_help();
         }
         else if(!strcmp(str, "sc\n")){
-            //set_condition(pid);
+            // ステップ実行を繰り返し変更があったレジスタの色を変更する．モード
             change_regs_color(pid);
         }
         else{
+            // それ以外のキー入力があったときの処理
             printf("unexpected.\n");  
         }  
     }
@@ -714,17 +738,22 @@ int main(int argc, char** argv){
 ▐█▄▪▐█ ▐█▌·▐█•█▌▐█ ▪▐▌██. ██ ▐█▄▄▌▐█•█▌\n\
  ▀▀▀▀  ▀▀▀ .▀  ▀ ▀  ▀ ▀▀▀▀▀•  ▀▀▀ .▀  ▀\n\
 ");
+    // コマンドライン引数がなかったときの処理
     if (argc < 2){
         char strpid[32];
         int intpid;
+        // ここから始まる
 
-        printf("If you want to debug aleady exist process, Please type the process id.\n");
+        printf("もしすでに動作しているプロセスをデバッグしたいときはプロセスIDを入力してください．\n");
         printf("type \"q\" to quit.\n");
         fgets(strpid ,sizeof(strpid) , stdin);
         if(!strcmp(strpid, "q\n")){
             exit(1);
+            // コマンドライン引数がなかった場合の処理でq 意外であった場合は文字列はプロセスIDとして
+            // 認識しそのプロセスIDのすでに動作しているプロセスのアタッチを試みる
             run_debugger(intpid, 1);
         }
+        // 与えられたプロセスIDのプロセスのアタッチを試みる
         long ret;
         intpid = atoi(strpid);
         ret = ptrace(PTRACE_ATTACH, intpid, NULL, NULL);
@@ -738,11 +767,15 @@ int main(int argc, char** argv){
         fprintf(stderr, "Usage :$ %s <target>\n", argv[0]);
         exit(1);
     }
+    //コマンドライン引数があったときの処理
+    //子プロセスを生成
     child_pid = fork();
     if (child_pid == 0){
+        //子プロセスではコマンドライン引数のプログラムを実行
         run_target(argv[1]);
     }
     else if (child_pid > 0){
+        // 親プロセスではデバッガを実行
         run_debugger(child_pid, 0);
     }
     else {
