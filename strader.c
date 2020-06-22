@@ -15,6 +15,7 @@
 # define SUCCESSFUL 1
 # define FAILURE 0
 
+//レジスタの値の色を変更するためのマクロ
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
 #define KGRN  "\x1B[32m"
@@ -26,7 +27,7 @@
 
 
 
-
+// ブレークポイントをヒープ領域に保存するためのリンクドリスト
 typedef unsigned long long int data_t;
 typedef struct nodetag{
     data_t address;
@@ -111,8 +112,11 @@ int nodeDelete(node_t **ndPtrPtr, int n){
 
 void p_wait(pid_t pid)
 {
+    //このデバッガが子プロセスに対して操作（命令）をした際に，
+    //子プロセスが停止するまでこのデバッガ（親プロセス）の動作を停止させる
     int status;
     waitpid(pid, &status, WUNTRACED);
+    //子プロセスが停止した際statusに子プロセスが停止した原因が入る．
     if (WIFEXITED(status)) {
       printf("program exited normally\n");
       exit(0);
@@ -121,33 +125,47 @@ void p_wait(pid_t pid)
     } else if (WIFSTOPPED(status)) {
       printf("stopped by signal %d\n", WSTOPSIG(status));
     }
+    return;
 }
-// ブレークポイントを設置する．ブレークポイントはそのアドレスとそのアドレスから上に８バイト分のメモリ内容を保存する．
+//ブレークポイントを設置する．
+//ブレークポイントはそのアドレスとそのアドレスから上に８バイト分のメモリ内容を保存します．
 void set_break(pid_t pid, unsigned long long int address)
 {     
     unsigned long long int original_text;
+    //もとの命令（メモリ内容）を変数に保存します
     original_text = ptrace(PTRACE_PEEKTEXT, pid, address, 0);
     if(original_text == -1){
         printf("error at peektext\n");
         return;
     }
+    //ブレークポイントをつけた命令を書き込みます．
+    //マスクを使って，もとの上位７バイトの命令と下位１バイトの0xCCを保存します．
+    //もちろん場所（アドレス）は命令を取ってきた場所と同じ場所です．
     if(-1 == ptrace(PTRACE_POKETEXT, pid, address, ((original_text & 0xFFFFFFFFFFFFFF00) | 0xCC))){
         printf("error at poketext\n");
-
+        return;
     }
+    //ブレークポイントを設定する前のメモリ内容８バイトを表示
     printf("set breakpoint  :%016llx  :%016llx\n", address, original_text);
+    //設定したブレークポイントをリンクドリストに保存
     nodeAppend(&list, address, original_text);
+
+    return;
 }
 
 void run_target(const char* target)
 {
     ptrace(PTRACE_TRACEME, 0, 0, 0);
+    //コマンドライン引数であったプログラム名を起動
+    //うまく行った場合exec系関数は何も返さないつまり帰った場合すべてエラー
     execl(target, target, NULL);
+    
     fprintf(stderr, "failed at executing target.");
+    exit(1);
 }
-
+//アドレスの値の入力の受け入れ
 void p_setbreakpoint(int pid)
-{
+{   
     char str_address[17];
     
     unsigned long long int break_address;
@@ -161,10 +179,13 @@ void p_setbreakpoint(int pid)
     printf("%016llx\n", break_address);
     // そのアドレスをもとにブレークポイントを設置
     set_break(pid, break_address);
+
+    return;
 }
 
 unsigned long long int p_removebreakpoint(pid_t pid)
 {
+
     struct user_regs_struct regs;
     unsigned long long int b_text;
     unsigned long long int text;
@@ -201,19 +222,24 @@ unsigned long long int p_removebreakpoint(pid_t pid)
     return address -1;
 }
 
+//動作を再開するだけ
 void p_continue(int pid)
 {   
     ptrace(PTRACE_CONT, pid, 0, 0);
     printf("----------------------------------------------------\n");
     p_wait(pid);
+    return;
 }
 
+// ステップをするだけ
 void p_step(int pid)
 {   
     ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
     p_wait(pid);
+    return;
 }
 
+//レジスタの値を構造体に保存しそれを返す．
 struct user_regs_struct p_getregs(int pid)
 {
     struct user_regs_struct regs;
@@ -246,7 +272,7 @@ void p_showregs(int pid)
     printf("r15: 0x%llx\n", regs.r15);
     printf("flag:0x%llx\n", regs.fs);
     
-    
+    return;
 }
 
 void print_help()
@@ -273,6 +299,7 @@ void showmemory(int pid)
     for(int i=0;i<count;i++){
         printf("%016lx\n", ptrace(PTRACE_PEEKTEXT, pid, address + 8*i, 0));
     }printf("\n");
+    return;
 }
 
 void stepping(int pid)
@@ -292,10 +319,12 @@ void stepping(int pid)
     }else{
         p_step(pid);
     }
+    return;
 }
 
 void setregs(int pid)
 {
+    //レジスタの値を変更する
     // this function still not complete;
     struct user_regs_struct regs;
     regs = p_getregs(pid);
@@ -319,8 +348,10 @@ void setregs(int pid)
             15:r14\n\
             16:r15\n\
             17:flag\n");
-    printf("choose the register you want to change :");
+    printf("変更したいレジスタの番号を選択してください :");
+    //入力を受け入れる
     fgets(str_cnt, 10, stdin);
+    //受け入れた値の型を文字列から整数に
     cont = (int)strtol(str_cnt, NULL, 10);
 
     if(cont == 1){
@@ -478,6 +509,7 @@ void setregs(int pid)
     }
     ptrace(PTRACE_SETREGS, pid,NULL, &regs);
     
+    return;
 }
 
 void continueing(int pid)
@@ -485,27 +517,34 @@ void continueing(int pid)
     // 停止したプロセスの動作の再開
 
     // マスクをして停止したアドレスが0xCCつまりブレークポイントであった場合は，
-    // そのブレークポイントを一旦もとの命令に戻し，ステップ実行によって命令を一つ進める．
+    // そのブレークポイントを一旦もとの命令に戻し，ステップ実行によって命令を一つ進める．こうすることによってもとのプログラムの通りに動作する
     // そして，また同じ場所にブレークポイントを設置する．
-    // こうすることによってブレークする以前の状態を保とうとしている．
+    // こうすることによってブレークする以前のブレークポイントがあった状態を保とうとしている．
     struct user_regs_struct regs;
     unsigned long long int text;
     unsigned long long int address;
     //レジスタを一旦構造体として保存
     regs = p_getregs(pid);
     //現在のブレークする一つ前のメモリの状態８バイトを保存
-    //止まったアドレスが0xCCの場合は停止したプログラムは次の命令のアドレスをripに保存するため，
-    //
+
     text = ptrace(PTRACE_PEEKTEXT, pid, regs.rip -1 , 0);
     
     if( 0xCC == ((text & 0x00000000000000FF))){
+        //プログラムが停止した原因がブレークポイントであった場合の処理
+        //ブレークポイントをもとの命令に戻す
         address = p_removebreakpoint(pid);
+        //ステップ実行をして命令を一つ進める．
         p_step(pid);
+        // ブレークポイントを再度設定する
         set_break(pid, address);
+        // 動作を再開
         p_continue(pid);
     }else{
+        //プログラムが停止した原因がデバッガが設定したブレークポイント出なかった場合の処理
+        //動作を再開
         p_continue(pid);
     }
+    return;
 }
 
 void change_regs_color(int pid)
@@ -644,14 +683,17 @@ void change_regs_color(int pid)
     
         system("clear");
     }
+    return;
     
 }
 
 void showrip(int pid)
-{
+{   
+    //レジスタの値を構造体に保存しripの値を表示
     struct user_regs_struct regs;
     regs = p_getregs(pid);
     printf("rip: 0x%llx\n", regs.rip); 
+    return;
 
 }
 
@@ -664,14 +706,14 @@ void run_debugger(int pid, int attach)
     printf("run_debugger.\n");
     printf("press \"h\" to help.\n");
 
-    printf("子プロセスのIDは  %d \n", pid);
+    printf("子プロセスのプロセスIDは  %d \n", pid);
     p_wait(pid);
             // 以下でデバッガの操作を行うキー入力に対する処理
             // 
     while(1){
         char str[20];
         
-        //showrip(pid);
+        showrip(pid);
         printf(">");
         fgets(str, 20, stdin);
         if(!strcmp(str,"b\n")){
@@ -727,6 +769,7 @@ void run_debugger(int pid, int attach)
             printf("unexpected.\n");  
         }  
     }
+    return;
 }
 
 int main(int argc, char** argv){
