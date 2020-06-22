@@ -29,9 +29,17 @@
 
 // ブレークポイントをヒープ領域に保存するためのリンクドリスト
 typedef unsigned long long int data_t;
+
+//構造体の作成
 typedef struct nodetag{
+
+    //ブレークポイントのアドレス
     data_t address;
+
+    //ブレークポイントを設定する命令内容
     data_t text;
+
+    //次の構造体へのアドレス
     struct nodetag *next;
 }node_t;
 
@@ -60,7 +68,10 @@ int nodeAppend(node_t**ndPtrPtr, data_t address, data_t text){
     return SUCCESSFUL;
 }
 
+// リストの中身を表示
 int listPrint(node_t *ndPtr){
+    //一番最後の構造体では次の構造体へのポインタにNULLが設定されているため
+    //NULLが出るまで繰り返す
     while(ndPtr != NULL) {
         printf("address :%016llx\ntext :%016llx\n", ndPtr -> address, ndPtr->text);
         ndPtr = ndPtr -> next;
@@ -109,7 +120,7 @@ int nodeDelete(node_t **ndPtrPtr, int n){
 
 }
 
-
+//子プロセスの動作が完了し停止するまで待つ
 void p_wait(pid_t pid)
 {
     //このデバッガが子プロセスに対して操作（命令）をした際に，
@@ -127,6 +138,7 @@ void p_wait(pid_t pid)
     }
     return;
 }
+
 //ブレークポイントを設置する．
 //ブレークポイントはそのアドレスとそのアドレスから上に８バイト分のメモリ内容を保存します．
 void set_break(pid_t pid, unsigned long long int address)
@@ -153,6 +165,7 @@ void set_break(pid_t pid, unsigned long long int address)
     return;
 }
 
+//子プロセス上で与えられた文字列のプログラムを実行
 void run_target(const char* target)
 {
     ptrace(PTRACE_TRACEME, 0, 0, 0);
@@ -163,13 +176,13 @@ void run_target(const char* target)
     fprintf(stderr, "failed at executing target.");
     exit(1);
 }
-//アドレスの値の入力の受け入れ
+
+//アドレスの値の入力の受け入れてそれをもとにブレークポイントを設定する関数を呼び出す
 void p_setbreakpoint(int pid)
 {   
     char str_address[17];
     
     unsigned long long int break_address;
-    
 
     printf("ブレークポイントを設定します．\n");
     printf("ブレークポイントを設定したいアドレスを入力．\n");
@@ -183,6 +196,8 @@ void p_setbreakpoint(int pid)
     return;
 }
 
+//子プロセスが停止した際にその原因がブレークポイントであるかの確認をしそうだったときのみ
+//ブレークポイントの0xCC命令をもとの命令に戻しまたブレークポイントのリストからも削除する
 unsigned long long int p_removebreakpoint(pid_t pid)
 {
 
@@ -191,33 +206,58 @@ unsigned long long int p_removebreakpoint(pid_t pid)
     unsigned long long int text;
     unsigned long long int address;
 
+    //レジスタの値を保存しripの値を見るそのアドレスが
     ptrace(PTRACE_GETREGS, pid, 0, &regs);
     address = regs.rip;
-    printf("breakaddress is :%016llx\n", address);
+    printf("ブレークしたアドレス :%016llx\n", address);
+
+    //ブレークポイントのリスト上にさっき停止したアドレスと一致するものがあるかの確認
+    //つまり子プロセスの停止原因がデバッガが設定したブレークポイントであるかの確認
+    // -1 しているのはaddressが0xCCを指すようにするため
+    //停止した原因がブレークポイントつまり１バイト命令の0xCCだったときその命令が実行された直後に
+    //プログラムは停止するから-1することでaddressは0xCCを指す
+    //逆にそうでなかった場合命令長も異なるため0xCCでないものつまりブレークポイント以外のものであることがわかる
     text = node_findtext(list, address - 1);
+
     if(0 == text){
-        printf("Last break was Unexpected.\n");
+        //リスト上にある命令停止したアドレスが一致しなかった場合
+        printf("デバッガが設定したブレークポイントによる停止ではありませんでした.\n");
         return -1;
     }
-    printf("find breakpoint\n");
+    //リスト上の過去に設定したブレークポイントのアドレスと
+    //今回停止したアドレスに一致するものがあった場合
+    printf("リスト上にブレークポイントを発見しました\n");
 
+    //現在の停止したメモリ内容８バイトを保存
     b_text = ptrace(PTRACE_PEEKTEXT, pid, address-1, 0);
     if(b_text == -1){
-        printf("faied.\n");
+        printf("メモリ内容の保存に失敗\n");
         exit(1);
-    }printf("breaked text is :%016llx\n", b_text);
-    
-    printf("now rip is: %016llx\n",address);
+    }
+    printf("ブレークが行われた命令から上に８バイトのメモリ内容 :%016llx\n", b_text);
+    printf("現在のrip: %016llx\n",address);
+
+    //また同じ命令を行うためにirpの値を一つ戻してあげる
+    //しかしブレークポイントを設定する以前の同じ場所の命令長は１バイトとは限らないからなんとかしなければならないのかもしれない
     regs.rip -= 1;
+
+    //レジスタを設定
     ptrace(PTRACE_SETREGS, pid, 0, &regs);
+
+    //ブレークが行われたメモリ内容からブレークポイントのリストをもとに0xCCをなくし，もともとのメモリ内容に戻す．
+    //マスクを使って下位１バイトのみが変更されるようにしている
     ptrace(PTRACE_POKETEXT, pid, address - 1, ((b_text & 0xFFFFFFFFFFFFFF00) |(text & 0x00000000000000FF)));
+
+    //上の操作が行われたかの確認
     b_text = ptrace(PTRACE_PEEKTEXT, pid, address -1, 0);
     if(b_text == -1){
-        printf("faied.\n");
+        printf("メモリ内容の保存に失敗\n");
         exit(1);
-    }printf("restored :%016llx\n", b_text);
+    }
+    printf("ブレークポイントが削除された命令内容 :%016llx\n", b_text);
+    //ブレークポイントリストからブレークポイントを削除することを試みる．
     if(0 == nodeDelete(&list, node_findcnt(list, address-1))){
-        printf("falure at removing breakpoint from list.\n");
+        printf("ブレークポイントリストからブレークポイントを削除できませんでした．\n");
     }
     return address -1;
 }
@@ -246,10 +286,9 @@ struct user_regs_struct p_getregs(int pid)
     ptrace(PTRACE_GETREGS, pid, 0, &regs);
     return regs;
 }
-
+// レジスタの値を表示
 void p_showregs(int pid)
 {
-    //ほとんどのレジスタを表示
     struct user_regs_struct regs;
     regs = p_getregs(pid);
     //printf("\n");
@@ -275,6 +314,7 @@ void p_showregs(int pid)
     return;
 }
 
+// ヘルプ（使い方）を表示
 void print_help()
 {
     printf(">b to set breakpoint.\n");
@@ -283,25 +323,30 @@ void print_help()
     return;
 }
 
+//メモリの内容を表示
 void showmemory(int pid)
 {
     char str_address[17];
     unsigned long long int address;
     char str_count[4];
     int count; 
-    printf("put address you want to see inside :");
+    printf("表示したいメモリのアドレスを入力 :");
     fgets(str_address, 17, stdin);
     address = (unsigned long long int)strtol(str_address, NULL, 16);
     fgets(str_count, 4, stdin);
-    printf("how many repeat per 8byte :");
+    printf("８バイトずつ表示しますが何回繰り返しますか？ :");
     count = (int)strtol(str_count, NULL, 10);
     printf("%016llx\n", address);
+    // 繰り返す回数リピート
     for(int i=0;i<count;i++){
+        //８バイトずつ表示されるためi*8をすることで重複したメモリ内容を表示することを避けながら
+        //指定されたアドレス付近の目乗り内容を表示
         printf("%016lx\n", ptrace(PTRACE_PEEKTEXT, pid, address + 8*i, 0));
     }printf("\n");
     return;
 }
 
+//ブレークポイントを監視しながらステップ実行
 void stepping(int pid)
 {
     struct user_regs_struct regs;
@@ -322,9 +367,10 @@ void stepping(int pid)
     return;
 }
 
+//レジスタの値を変更する
 void setregs(int pid)
 {
-    //レジスタの値を変更する
+    
     // this function still not complete;
     struct user_regs_struct regs;
     regs = p_getregs(pid);
@@ -512,9 +558,9 @@ void setregs(int pid)
     return;
 }
 
+// ブレークポイントの監視をしながら停止したプロセスの動作の再開
 void continueing(int pid)
 {
-    // 停止したプロセスの動作の再開
 
     // マスクをして停止したアドレスが0xCCつまりブレークポイントであった場合は，
     // そのブレークポイントを一旦もとの命令に戻し，ステップ実行によって命令を一つ進める．こうすることによってもとのプログラムの通りに動作する
@@ -547,6 +593,8 @@ void continueing(int pid)
     return;
 }
 
+//１ミリ秒あたりの命令実行回数を制限し，
+//毎回ステップ実行を行うことによって直前のレジスタと今のレジスタの値の違いを調べる．
 void change_regs_color(int pid)
 {
     struct user_regs_struct regs1;
@@ -557,13 +605,15 @@ void change_regs_color(int pid)
     regs1 = p_getregs(pid);
     char str[10];
     int cyc;
-    printf("please type time you want to repeat(ms): ");
+    printf("1ミリ秒あたりの命令実行回数を入力: ");
     fgets(str, 10, stdin);
     cyc = atoi(str);
     while(1){
         long long int inlong;
+        // ステップ実行
         p_step(pid);
         
+        //レジスタの値を取ってくる
         regs2 = p_getregs(pid);
 
         inlong = regs2.rip - regs1.rip;
@@ -687,6 +737,7 @@ void change_regs_color(int pid)
     
 }
 
+//ripのレジスタの値のみを表示
 void showrip(int pid)
 {   
     //レジスタの値を構造体に保存しripの値を表示
@@ -697,14 +748,12 @@ void showrip(int pid)
 
 }
 
+//デバッガ本体の処理
 void run_debugger(int pid, int attach)
 {   
-    int status;
     
-    
-    //unsigned long long int original_text = 0;
-    printf("run_debugger.\n");
-    printf("press \"h\" to help.\n");
+    printf("デバッガが起動しました.\n");
+    printf("\"h\" と入力することで使い方を表示します．\n");
 
     printf("子プロセスのプロセスIDは  %d \n", pid);
     p_wait(pid);
@@ -772,6 +821,7 @@ void run_debugger(int pid, int attach)
     return;
 }
 
+//子プロセスを生成し，親プロセスではデバッガを子プロセスではデバッグ対象になる
 int main(int argc, char** argv){
     pid_t child_pid;
     printf("\
