@@ -1,2 +1,2 @@
-stradermake: breakpoint_list.c strader.c 
-	gcc breakpoint_list.c strader.c -o strader 
+stradermake: breakpoint_list.c strader.c strader_main.c
+	gcc breakpoint_list.c strader.c strader_main.c -o strader 
