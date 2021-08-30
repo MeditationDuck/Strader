@@ -102,56 +102,6 @@ void p_setbreakpoint(int pid)
     return;
 }
 
-void removebreakpoint(int pid)
-{
-    char str_address[17];
-    
-    unsigned long long int break_address;
-    unsigned long long int text;
-    unsigned long long int b_text;
-
-    printf("ブレークポイントを削除します．\n");
-    printf("ブレークポイントを削除したいアドレスを入力．\n");
-    //アドレスの文字列を受け入れ，文字列であるから方を変換して，
-    fgets(str_address, 17, stdin);
-    break_address = (unsigned long long int)strtol(str_address, NULL, 16);
-    printf("%016llx\n", break_address);
-    // そのアドレスをもとにブレークポイントを設置
-    //set_break(pid, break_address);
-    text = node_findtext(list, break_address);
-    if(0 == text){
-        //リスト上にあるアドレスと指定されたアドレスが一致しなかった場合
-        printf("指定されたアドレスにブレークポイントは存在しません.\n");
-        return ;
-    }
-    printf("リスト上にブレークポイントを発見しました\n");
-
-    b_text = ptrace(PTRACE_PEEKTEXT, pid, break_address, 0);
-    if(b_text == -1){
-        printf("メモリ内容の保存に失敗\n");
-        exit(1);
-    }
-    printf("ブレークが行われる命令から８バイトのメモリ内容 :%016llx\n", b_text);
-    printf("ブレークポイントのrip: %016llx\n",break_address);
-
-    ptrace(PTRACE_POKETEXT, pid, break_address, ((b_text & 0xFFFFFFFFFFFFFF00) |(text & 0x00000000000000FF)));
-
-    //上の操作が行われたかの確認
-    b_text = ptrace(PTRACE_PEEKTEXT, pid, break_address -1, 0);
-    if(b_text == -1){
-        printf("メモリ内容の保存に失敗\n");
-        exit(1);
-    }
-    printf("ブレークポイントが削除された命令内容 :%016llx\n", b_text);
-    //ブレークポイントリストからブレークポイントを削除することを試みる．
-    if(0 == nodeDelete(&list, node_findcnt(list, break_address))){
-        printf("ブレークポイントリストからブレークポイントを削除できませんでした．\n");
-    }
-    return ;
-}
-
-
-
 //子プロセスが停止した際にその原因がブレークポイントであるかの確認をしそうだったときのみ
 //ブレークポイントの0xCC命令をもとの命令に戻しまたブレークポイントのリストからも削除する
 unsigned long long int p_removebreakpoint(pid_t pid)
@@ -217,6 +167,55 @@ unsigned long long int p_removebreakpoint(pid_t pid)
     }
     //ブレークポイントが設定されていたアドレスを返す．
     return address -1;
+}
+
+//入力されたアドレスにブレークポイントがあった場合もとの命令に戻しリストから削除
+void removebreakpoint(int pid)
+{
+    char str_address[17];
+    
+    unsigned long long int break_address;
+    unsigned long long int text;
+    unsigned long long int b_text;
+
+    printf("ブレークポイントを削除します．\n");
+    printf("ブレークポイントを削除したいアドレスを入力．\n");
+    //アドレスの文字列を受け入れ，文字列であるから方を変換して，
+    fgets(str_address, 17, stdin);
+    break_address = (unsigned long long int)strtol(str_address, NULL, 16);
+    printf("%016llx\n", break_address);
+    // そのアドレスをもとにブレークポイントを設置
+    //set_break(pid, break_address);
+    text = node_findtext(list, break_address);
+    if(0 == text){
+        //リスト上にあるアドレスと指定されたアドレスが一致しなかった場合
+        printf("指定されたアドレスにブレークポイントは存在しません.\n");
+        return ;
+    }
+    printf("リスト上にブレークポイントを発見しました\n");
+
+    b_text = ptrace(PTRACE_PEEKTEXT, pid, break_address, 0);
+    if(b_text == -1){
+        printf("メモリ内容の保存に失敗\n");
+        exit(1);
+    }
+    printf("ブレークが行われる命令から８バイトのメモリ内容 :%016llx\n", b_text);
+    printf("ブレークポイントのrip: %016llx\n",break_address);
+
+    ptrace(PTRACE_POKETEXT, pid, break_address, ((b_text & 0xFFFFFFFFFFFFFF00) |(text & 0x00000000000000FF)));
+
+    //上の操作が行われたかの確認
+    b_text = ptrace(PTRACE_PEEKTEXT, pid, break_address -1, 0);
+    if(b_text == -1){
+        printf("メモリ内容の保存に失敗\n");
+        exit(1);
+    }
+    printf("ブレークポイントが削除された命令内容 :%016llx\n", b_text);
+    //ブレークポイントリストからブレークポイントを削除することを試みる．
+    if(0 == nodeDelete(&list, node_findcnt(list, break_address))){
+        printf("ブレークポイントリストからブレークポイントを削除できませんでした．\n");
+    }
+    return ;
 }
 
 //動作を再開するだけ
