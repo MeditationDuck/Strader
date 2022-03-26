@@ -17,7 +17,7 @@ It was hard to make Strader because there are few way to verify debugger works c
 ＞b ブレークポイントの設置  setting breakpoint  
 ＞ｓ ステップ実行  step into execution.  
 ＞ｃ  停止したプロセスの動作再開   Continue, It means restart the process.  
-＞d ブレークポイントの削除  delete breakpoint  
+＞d ブレークポイントの削除  delete breakpoint.  
 ＞ib 設置したブレークポイントの表示  show breakpoint what I had set.   
 ＞ｍ メモリの内容の表示  show content in memory.   
 ＞r  レジスタの値の表示  show register values.   
