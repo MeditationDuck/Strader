@@ -1,7 +1,7 @@
 # Strader
 
-シンプルでわかりやすいデバッガを作ることで自分みたいなライトユーザーや初心者にも使いやすいはず！！  
-This is a debugger it is simple and it is tracer or debugger, so I named "Strader".  
+シンプルでわかりやすいデバッガを作ることで自分みたいなライトユーザーや初心者にも使いやすいはず！！   
+Strader is simple and tracer also debugger, so I named "Strader".  
 I made this to learn what is happening in debugger and executable file and process.  
 It was hard to make Strader because there are few way to verify debugger works correctly.  
 
