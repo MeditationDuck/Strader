@@ -1,9 +1,9 @@
 # Strader
 
 シンプルでわかりやすいデバッガを作ることで自分みたいなライトユーザーや初心者にも使いやすいはず！！
-This is a debugger it is simple and it is tracer or debugger, so I named "Strader".
-I made this to learn what is happening in debugger and executable file and process.
-It was hard to make Strader because there are few way to verify debugger works correctly.
+This is a debugger it is simple and it is tracer or debugger, so I named "Strader".  
+I made this to learn what is happening in debugger and executable file and process.  
+It was hard to make Strader because there are few way to verify debugger works correctly.  
 
 
 ## 使い方 How to use Strader
@@ -14,8 +14,8 @@ It was hard to make Strader because there are few way to verify debugger works c
 ./strader   実行の後 Firstly run only Strader, then type processID  
 プロセスIDを入力
 
-＞b ブレークポイントの設置  setting breakpoint 
-＞ｓ ステップ実行  step into execution
+＞b ブレークポイントの設置  setting breakpoint  
+＞ｓ ステップ実行  step into execution. 
 ＞ｃ  停止したプロセスの動作再開   Continue, It means restart the process.  
 ＞d ブレークポイントの削除  delete breakpoint
 ＞ib 設置したブレークポイントの表示  show breakpoint what I had set
